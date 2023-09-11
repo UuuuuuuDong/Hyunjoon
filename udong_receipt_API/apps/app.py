@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 from flask import Flask, request, Response, jsonify, render_template
 import requests, os, uuid, time, json
 from werkzeug.utils import secure_filename
@@ -8,6 +10,10 @@ app = Flask(__name__)
 # 업로드된 이미지를 저장할 디렉토리 설정
 UPLOAD_FOLDER = "./uploads"
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+
+
+def remove_space(str):
+    return str.replace(" ", "")
 
 
 @app.route("/")
@@ -52,9 +58,34 @@ def receipt_OCR():
     response = requests.request(
         "POST", api_url, headers=headers, data=payload, files=image_data
     )
-    result = response.json()
-    print(result)
-    return result
+    Clova_result = response.json()
+    payment_info = Clova_result["images"][0]["receipt"]["result"]["paymentInfo"]
+    payment_date = payment_info["date"]["text"]  # 날짜
+    payment_time = remove_space(payment_info["time"]["text"])  # 시간
+
+    store_name = remove_space(
+        Clova_result["images"][0]["receipt"]["result"]["storeInfo"]["name"]["text"]
+    )  # 상호명
+    total_price = remove_space(
+        Clova_result["images"][0]["receipt"]["result"]["totalPrice"]["price"][
+            "formatted"
+        ]["value"]
+    )  # 금액
+
+    # 결과 출력
+    # print("dateOfPayment :", payment_date)
+    # print("timeOfPayment :", payment_time)
+    # print("storeName :", store_name)
+    # print("price :", total_price)
+    parsed_data = {
+        "dateOfPayment": payment_date,
+        "timeOfPayment": payment_time,
+        "storeName": store_name,
+        "price": total_price,
+    }
+    os.remove(filepath)
+    print(parsed_data)
+    return parsed_data
 
 
 if __name__ == "__main__":
